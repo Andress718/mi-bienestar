@@ -7,11 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs v11.6.1 -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         window.firebaseTools = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc };
     </script>
@@ -49,16 +49,10 @@
         .hidden-scrollbar::-webkit-scrollbar {
             display: none;
         }
-        .check-pill {
-            transition: all 0.2s ease;
-        }
-        .check-pill:active {
-            transform: scale(0.95);
-        }
     </style>
     <!-- Chosen Palette: Warm Neutrals (Stone/Zinc) with deep Teal accents. -->
-    <!-- Application Structure Plan: Integrated Daily Recipes that change with the day selector. Removed fish, included lean meats (beef, turkey, chicken). Maintain Firebase persistence for weight and exercise checks. -->
-    <!-- Visualization & Content Choices: Interactive Line Chart. Dynamic Menu table that updates on day click. Instructions for each meat-based recipe. -->
+    <!-- Application Structure Plan: Fixed Firebase sync by ensuring auth completes before listeners start. Updated to v11.6.1. Added error handling. Chart now displays both projection and actual user data. -->
+    <!-- Visualization & Content Choices: Dual-line chart (Goal vs Real). Dynamic meat-based menu. Persistent exercise checklist. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans leading-relaxed tracking-wide min-h-screen">
@@ -68,7 +62,7 @@
         <header class="text-center mb-10">
             <h1 class="text-3xl md:text-4xl font-light text-stone-900 tracking-tight mb-2 uppercase tracking-[0.2em]">Bienestar</h1>
             <p class="text-xs text-stone-500 font-bold tracking-[0.4em] uppercase mb-4">Deviria • Elevando el Alma</p>
-            <div id="auth-status" class="text-[10px] text-teal-600 font-semibold uppercase tracking-widest">Sincronizando...</div>
+            <div id="auth-status" class="text-[10px] text-teal-600 font-semibold uppercase tracking-widest bg-white inline-block px-3 py-1 rounded-full border border-stone-100 shadow-sm">Iniciando sistema...</div>
         </header>
 
         <!-- Selector de Día Unificado -->
@@ -83,9 +77,9 @@
         </div>
 
         <nav class="flex justify-center border-b border-stone-200 mb-8 overflow-x-auto hidden-scrollbar">
-            <button onclick="switchTab('rutina')" id="btn-rutina" class="tab-active px-6 py-3 text-sm uppercase tracking-wider transition-colors hover:text-teal-700 whitespace-nowrap">💪 Rutina Diaria</button>
-            <button onclick="switchTab('nutricion')" id="btn-nutricion" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">🥗 Menú del Día</button>
-            <button onclick="switchTab('resumen')" id="btn-resumen" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">📊 Progreso & Peso</button>
+            <button onclick="switchTab('rutina')" id="btn-rutina" class="tab-active px-6 py-3 text-sm uppercase tracking-wider transition-colors hover:text-teal-700 whitespace-nowrap">💪 Rutina</button>
+            <button onclick="switchTab('nutricion')" id="btn-nutricion" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">🥗 Menú</button>
+            <button onclick="switchTab('resumen')" id="btn-resumen" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">📊 Progreso</button>
         </nav>
 
         <main id="content-area" class="bg-white rounded-3xl shadow-sm border border-stone-100 p-6 md:p-10 min-h-[60vh]">
@@ -93,63 +87,44 @@
             <!-- VIEW: RUTINA -->
             <section id="view-rutina" class="fade-in block">
                 <div class="mb-8">
-                    <h2 class="text-2xl font-light text-stone-800 mb-3" id="routine-title-display">Checklist de Entrenamiento</h2>
+                    <h2 class="text-2xl font-light text-stone-800 mb-3" id="routine-title-display">Checklist</h2>
                     <p class="text-stone-600 text-sm md:text-base" id="routine-subtitle-display"></p>
                 </div>
                 <div id="routine-exercises" class="max-w-2xl mx-auto w-full space-y-4"></div>
             </section>
 
-            <!-- VIEW: NUTRICION (Recetas Cambiantes) -->
+            <!-- VIEW: NUTRICION -->
             <section id="view-nutricion" class="fade-in hidden">
                  <div class="mb-8">
                     <h2 class="text-2xl font-light text-stone-800 mb-2">Nutrición Sin Pescado</h2>
-                    <p class="text-stone-500 text-xs uppercase tracking-widest font-bold mb-6">Proteínas de Origen Terrestre • DEVIRIA Food</p>
+                    <p class="text-stone-500 text-xs uppercase tracking-widest font-bold mb-6">Proteínas Magras • DEVIRIA Food</p>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
-                    <div class="md:col-span-1 space-y-6">
-                        <div class="bg-stone-50 p-6 rounded-2xl border border-stone-100">
-                            <h3 class="text-[10px] uppercase tracking-widest text-teal-700 font-bold mb-4">Reglas DEVIRIA</h3>
-                            <ul id="reglas-container" class="space-y-4 text-xs text-stone-600 leading-relaxed"></ul>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm uppercase tracking-widest text-stone-400 font-bold mb-6 flex items-center gap-2">
-                            <span id="menu-day-name" class="text-stone-800">Lunes</span> • Protocolo Nutricional
-                        </h3>
-                        <div id="menu-container" class="space-y-4"></div>
-                    </div>
-                </div>
+                <div id="menu-container" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
             </section>
 
             <!-- VIEW: RESUMEN -->
             <section id="view-resumen" class="fade-in hidden">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
                     <div>
-                        <h3 class="text-lg font-light text-stone-800 mb-6 underline decoration-teal-100 decoration-4">Proyección de Peso</h3>
-                        <div class="chart-container bg-stone-50 rounded-2xl p-4 border border-stone-100 shadow-inner">
+                        <h3 class="text-sm uppercase tracking-[0.2em] text-stone-400 font-bold mb-6">Gráfico de Evolución</h3>
+                        <div class="chart-container bg-stone-50 rounded-2xl p-4 border border-stone-100">
                             <canvas id="progressChart"></canvas>
                         </div>
                     </div>
 
                     <div class="space-y-6">
-                        <div class="bg-white p-8 rounded-3xl border border-stone-200 shadow-sm">
-                            <h3 class="text-xs uppercase tracking-widest text-stone-500 font-bold mb-6">Ingresar Registro</h3>
-                            <div class="flex gap-3">
-                                <input type="number" id="input-peso" step="0.1" placeholder="Peso en kg" class="flex-1 px-5 py-3 border border-stone-100 rounded-xl bg-stone-50 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all">
-                                <button onclick="saveWeight()" class="bg-stone-900 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-800 transition-all shadow-lg">Guardar</button>
+                        <div class="bg-white p-6 rounded-3xl border border-stone-200 shadow-sm">
+                            <h3 class="text-xs uppercase tracking-widest text-stone-500 font-bold mb-4">Ingresar Peso Actual</h3>
+                            <div class="flex gap-2">
+                                <input type="number" id="input-peso" step="0.1" class="flex-1 px-4 py-2 border border-stone-100 rounded-xl bg-stone-50 outline-none">
+                                <button onclick="saveWeight()" class="bg-teal-800 text-white px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest">Guardar</button>
                             </div>
                         </div>
 
-                        <div class="max-h-[300px] overflow-y-auto rounded-2xl border border-stone-100 hidden-scrollbar">
+                        <div class="max-h-[300px] overflow-y-auto rounded-2xl border border-stone-100">
                             <table class="w-full text-left text-xs">
                                 <thead class="bg-stone-50 text-stone-400 uppercase tracking-widest sticky top-0">
-                                    <tr>
-                                        <th class="px-6 py-4 font-bold">Fecha</th>
-                                        <th class="px-6 py-4 font-bold">Peso</th>
-                                        <th class="px-6 py-4 font-bold">Δ</th>
-                                    </tr>
+                                    <tr><th class="px-6 py-4">Fecha</th><th class="px-6 py-4">Peso</th><th class="px-6 py-4">Δ</th></tr>
                                 </thead>
                                 <tbody id="weight-table-body" class="divide-y divide-stone-50"></tbody>
                             </table>
@@ -157,131 +132,113 @@
                     </div>
                 </div>
             </section>
-
         </main>
     </div>
 
-    <!-- Modal Informativo -->
     <div id="info-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-50 hidden flex items-center justify-center p-6">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-300 border border-stone-100">
-            <h4 id="modal-title" class="text-xl font-light text-stone-800 mb-4 border-b border-stone-50 pb-2 uppercase tracking-tighter"></h4>
-            <div id="modal-content" class="text-sm text-stone-600 leading-relaxed space-y-4"></div>
-            <button onclick="closeModal()" class="mt-8 w-full py-4 bg-teal-800 text-white rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-teal-900 shadow-lg transition-all">Cerrar Guía</button>
+        <div class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl border border-stone-100">
+            <h4 id="modal-title" class="text-xl font-light text-stone-800 mb-4 uppercase tracking-tighter"></h4>
+            <div id="modal-content" class="text-sm text-stone-600 space-y-4"></div>
+            <button onclick="closeModal()" class="mt-8 w-full py-4 bg-teal-800 text-white rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px]">Cerrar</button>
         </div>
     </div>
 
     <script type="module">
-        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc } = window.firebaseTools;
+        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc } = window.firebaseTools;
 
         const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'plan-vital-v2';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'plan-vital-v3';
 
         let currentUser = null;
         let weightHistory = [];
         let exerciseProgress = {};
         let currentDayGlobal = 'Lunes';
+        let chartInstance = null;
 
         const reportData = {
-            reglas: [
-                "🥩 <b>Carnes Magras:</b> Prioriza pollo, pavo y ternera magra.",
-                "🚫 <b>Sin Pescado:</b> Sustituye el omega-3 con semillas de chía o nueces.",
-                "🥦 <b>Verdes:</b> 50% de tu plato en la cena debe ser verde.",
-                "💧 <b>Agua:</b> Toma un vaso antes de cada comida para saciedad.",
-                "🌑 <b>Ayuno nocturno:</b> Mínimo 12 horas entre cena y desayuno."
-            ],
             menuSemanal: {
-                "Lunes": [
-                    { time: "Desayuno", meal: "Huevos revueltos con espinacas y 1/2 aguacate.", recipe: "Bate 2 claras y 1 huevo. Saltea espinacas frescas. Acompaña con aguacate laminado." },
-                    { time: "Almuerzo", meal: "Pechuga de pollo a la plancha con quinoa.", recipe: "150g de pollo sazonado con limón y pimienta. 1/2 taza de quinoa cocida." },
-                    { time: "Cena", meal: "Ternera magra saltada con brócoli.", recipe: "120g de bistec de ternera en tiras. Saltea con brócoli al dente y un toque de jengibre." }
-                ],
-                "Martes": [
-                    { time: "Desayuno", meal: "Tortilla de claras con jamón de pavo.", recipe: "3 claras de huevo y 2 lonjas de pavo picadas. Cocinar a fuego lento." },
-                    { time: "Almuerzo", meal: "Bistec de ternera con espárragos.", recipe: "150g de ternera a la parrilla. 8 espárragos trigueros al vapor." },
-                    { time: "Cena", meal: "Ensalada de pollo y nueces.", recipe: "Pollo desmechado, mix de hojas verdes, rábano y 4 nueces troceadas." }
-                ],
-                "Miércoles": [
-                    { time: "Desayuno", meal: "Yogur griego con semillas de chía y canela.", recipe: "Yogur natural sin azúcar. Deja reposar la chía 5 min para que hidrate." },
-                    { time: "Almuerzo", meal: "Muslo de pollo sin piel con camote.", recipe: "Pollo al horno con romero. 100g de camote (batata) asado." },
-                    { time: "Cena", meal: "Tiras de pavo con calabacín.", recipe: "Saltea pavo con espirales de calabacín y un chorrito de aceite de oliva." }
-                ],
-                "Jueves": [
-                    { time: "Desayuno", meal: "Omelet de champiñones y pavo.", recipe: "2 huevos, champiñones laminados y pavo picado. Doblar y servir caliente." },
-                    { time: "Almuerzo", meal: "Bowl de ternera picada y arroz integral.", recipe: "120g de ternera molida magra, 1/3 taza de arroz integral y pimientos rojos." },
-                    { time: "Cena", meal: "Pechuga de pollo al limón con judías verdes.", recipe: "Pollo al vapor con rodajas de limón. Judías verdes salteadas con ajo." }
-                ],
-                "Viernes": [
-                    { time: "Desayuno", meal: "Huevos poché sobre cama de rúcula.", recipe: "2 huevos escalfados. Rúcula aliñada con limón y pimienta negra." },
-                    { time: "Almuerzo", meal: "Pavo a la naranja con ensalada mixta.", recipe: "Pechuga de pavo sellada con jugo de naranja natural. Ensalada de tomate y pepino." },
-                    { time: "Cena", meal: "Albóndigas de ternera caseras (sin pan).", recipe: "Carne molida con perejil y ajo. Cocinar en salsa de tomate natural." }
-                ],
-                "Sábado": [
-                    { time: "Desayuno", meal: "Revuelto de huevos con tomate cherry.", recipe: "Saltea los tomates antes de añadir los huevos para que suelten su jugo." },
-                    { time: "Almuerzo", meal: "Pollo al curry con coliflor.", recipe: "Pechuga de pollo en cubos con especias de curry. Coliflor picada estilo 'arroz'." },
-                    { time: "Cena", meal: "Carpaccio de ternera con parmesano (moderado).", recipe: "Láminas finas de ternera cruda de alta calidad con rúcula y limón." }
-                ],
-                "Domingo": [
-                    { time: "Desayuno", meal: "Muffins de huevo y vegetales.", recipe: "Bate huevos con pimientos y cebolla. Hornea en moldes de 15 a 20 min." },
-                    { time: "Almuerzo", meal: "Asado de ternera dominical con verduras.", recipe: "Corte magro al horno con zanahorias y cebollas asadas." },
-                    { time: "Cena", meal: "Sopa de pollo clara con mucho apio.", recipe: "Caldo natural, trozos de pollo y apio picado. Muy digestivo antes de dormir." }
-                ]
+                "Lunes": [{ time: "Desayuno", meal: "Huevos con espinacas", recipe: "2 claras + 1 huevo entero saltados." }, { time: "Almuerzo", meal: "Pollo con Quinoa", recipe: "150g pechuga + 1/2 taza quinoa." }, { time: "Cena", meal: "Ternera con Brócoli", recipe: "120g bistec magro + brócoli vapor." }],
+                "Martes": [{ time: "Desayuno", meal: "Pavo y Tortilla", recipe: "3 claras + jamón de pavo." }, { time: "Almuerzo", meal: "Bistec con Espárragos", recipe: "Ternera magra 150g." }, { time: "Cena", meal: "Ensalada Pollo", recipe: "Pollo desmechado + verdes." }],
+                "Miércoles": [{ time: "Desayuno", meal: "Yogur y Chía", recipe: "Yogur griego + 1 cda chía." }, { time: "Almuerzo", meal: "Pollo al Horno", recipe: "Muslo sin piel + camote." }, { time: "Cena", meal: "Pavo saltado", recipe: "Tiras de pavo + calabacín." }],
+                "Jueves": [{ time: "Desayuno", meal: "Omelet Champis", recipe: "Huevos + champiñones." }, { time: "Almuerzo", meal: "Ternera Molida", recipe: "Carne magra + arroz integral." }, { time: "Cena", meal: "Pechuga Limón", recipe: "Pollo vapor + judías." }],
+                "Viernes": [{ time: "Desayuno", meal: "Huevos Poché", recipe: "2 huevos sobre rúcula." }, { time: "Almuerzo", meal: "Pavo Naranja", recipe: "Pechuga + ensalada tomate." }, { time: "Cena", meal: "Albóndigas", recipe: "Ternera magra + salsa natural." }],
+                "Sábado": [{ time: "Desayuno", meal: "Revuelto Tomates", recipe: "Huevos + cherrys." }, { time: "Almuerzo", meal: "Pollo Curry", recipe: "Pechuga + arroz coliflor." }, { time: "Cena", meal: "Carpaccio", recipe: "Ternera fina + rúcula." }],
+                "Domingo": [{ time: "Desayuno", meal: "Muffins Huevo", recipe: "Huevo + pimientos al horno." }, { time: "Almuerzo", meal: "Asado Ternera", recipe: "Ternera horno + vegetales." }, { time: "Cena", meal: "Sopa Pollo", recipe: "Caldo claro + apio." }]
             },
             rutinas: {
-                "Lunes": { type: "Tren Inferior", exercises: [{ name: "Sentadillas", reps: "4x15", how: "Pies al ancho de hombros, baja la cadera." }, { name: "Zancadas", reps: "3x12/p", how: "Paso largo atrás, baja rodilla trasera." }] },
-                "Martes": { type: "Tren Superior", exercises: [{ name: "Flexiones", reps: "3x12", how: "Cuerpo recto, manos bajo hombros." }, { name: "Remo", reps: "4x15", how: "Inclina el torso, tira del peso a la cadera." }] },
-                "Miércoles": { type: "Cardio", exercises: [{ name: "Caminata Rápida", reps: "40 min", how: "Paso firme sin correr." }, { name: "Abdominales", reps: "3x20", how: "Crunch controlado." }] },
-                "Jueves": { type: "Full Body", exercises: [{ name: "Burpees", reps: "3x10", how: "Salto, plancha y arriba." }, { name: "Peso Muerto", reps: "4x12", how: "Espalda recta, baja el peso rozando piernas." }] },
-                "Viernes": { type: "Movilidad", exercises: [{ name: "Yoga", reps: "45 min", how: "Enfoque en respiración." }, { name: "Estiramientos", reps: "15 min", how: "Relajación total." }] },
-                "Sábado": { type: "Activo", exercises: [{ name: "10k Pasos", reps: "Libre", how: "Caminata al aire libre." }] },
-                "Domingo": { type: "Descanso", exercises: [{ name: "Estiramiento Suave", reps: "20 min", how: "Movilidad articular ligera." }] }
+                "Lunes": { type: "Tren Inferior", exercises: [{ name: "Sentadillas", reps: "4x15", how: "Baja la cadera con peso en talones." }, { name: "Zancadas", reps: "3x12/p", how: "Paso largo atrás." }] },
+                "Martes": { type: "Tren Superior", exercises: [{ name: "Flexiones", reps: "3x12", how: "Pecho al suelo." }, { name: "Remo", reps: "4x15", how: "Tira el peso a la cadera." }] },
+                "Miércoles": { type: "Cardio", exercises: [{ name: "Caminata", reps: "40 min", how: "Ritmo constante." }, { name: "Plancha", reps: "3x45s", how: "Core firme." }] },
+                "Jueves": { type: "Full Body", exercises: [{ name: "Burpees", reps: "3x10", how: "Salto y plancha." }, { name: "Peso Muerto", reps: "4x12", how: "Espalda recta." }] },
+                "Viernes": { type: "Movilidad", exercises: [{ name: "Yoga", reps: "45 min", how: "Enfoque en respiración." }] },
+                "Sábado": { type: "Activo", exercises: [{ name: "10k Pasos", reps: "Libre", how: "Caminata exterior." }] },
+                "Domingo": { type: "Descanso", exercises: [{ name: "Estiramiento", reps: "15 min", how: "Relajación total." }] }
             }
         };
 
         const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                document.getElementById('auth-status').textContent = "Error de conexión";
+                console.error(e);
             }
         };
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
-                document.getElementById('auth-status').textContent = "Sincronizado • DEVIRIA ID";
+                document.getElementById('auth-status').textContent = "Sincronizado • " + user.uid.substring(0,6);
                 loadData();
             }
         });
 
         const loadData = () => {
             if (!currentUser) return;
+
+            // Pesos
             const weightRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'weights');
             onSnapshot(weightRef, (snapshot) => {
                 weightHistory = snapshot.docs.map(doc => doc.data());
                 weightHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
                 renderWeightTable();
-            });
+                updateChart();
+            }, (err) => console.error("Error pesos:", err));
 
+            // Rutinas
             const progressRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'daily');
             onSnapshot(progressRef, (snapshot) => {
                 if (snapshot.exists()) {
                     exerciseProgress = snapshot.data();
                     renderExercises(currentDayGlobal);
                 }
-            });
+            }, (err) => console.error("Error rutina:", err));
         };
 
-        window.switchTab = (tabId) => {
-            ['resumen', 'nutricion', 'rutina'].forEach(id => {
-                document.getElementById(`btn-${id}`).classList.remove('tab-active');
-                document.getElementById(`btn-${id}`).classList.add('text-stone-500');
-                document.getElementById(`view-${id}`).classList.add('hidden');
-            });
-            document.getElementById(`btn-${tabId}`).classList.add('tab-active');
-            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+        window.saveWeight = async () => {
+            const val = document.getElementById('input-peso').value;
+            if (!val || !currentUser) return;
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'weights'), {
+                    weight: parseFloat(val),
+                    date: new Date().toISOString()
+                });
+                document.getElementById('input-peso').value = '';
+            } catch (e) { console.error(e); }
+        };
+
+        window.toggleExercise = async (day, idx) => {
+            if (!currentUser) return;
+            const key = `${day}-${idx}`;
+            exerciseProgress[key] = !exerciseProgress[key];
+            await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'daily'), exerciseProgress);
         };
 
         window.selectDay = (day) => {
@@ -290,62 +247,40 @@
                 document.getElementById(`btn-day-${d}`).classList.remove('day-active');
             });
             document.getElementById(`btn-day-${day}`).classList.add('day-active');
-            
             renderExercises(day);
             renderMenu(day);
         };
 
-        window.toggleExercise = async (day, idx) => {
-            const key = `${day}-${idx}`;
-            exerciseProgress[key] = !exerciseProgress[key];
-            await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'daily'), exerciseProgress);
-        };
-
-        window.saveWeight = async () => {
-            const val = document.getElementById('input-peso').value;
-            if (!val) return;
-            await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'weights'), {
-                weight: parseFloat(val),
-                date: new Date().toISOString()
-            });
-            document.getElementById('input-peso').value = '';
-        };
-
         const renderExercises = (day) => {
             const data = reportData.rutinas[day];
-            document.getElementById('routine-title-display').textContent = `Entrenamiento de ${day}`;
+            document.getElementById('routine-title-display').textContent = `Día ${day}`;
             document.getElementById('routine-subtitle-display').textContent = data.type;
             const container = document.getElementById('routine-exercises');
             container.innerHTML = data.exercises.map((ex, idx) => {
                 const isChecked = exerciseProgress[`${day}-${idx}`];
                 return `
-                    <div class="flex items-center gap-4 bg-white p-5 rounded-2xl border ${isChecked ? 'border-teal-50 opacity-50' : 'border-stone-100 shadow-sm'} transition-all">
-                        <button onclick="toggleExercise('${day}', ${idx})" class="w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 ${isChecked ? 'bg-teal-700 border-teal-700' : 'border-stone-200'}">
+                    <div class="flex items-center gap-4 bg-white p-4 rounded-2xl border ${isChecked ? 'opacity-40' : 'border-stone-100 shadow-sm'}">
+                        <button onclick="toggleExercise('${day}', ${idx})" class="w-6 h-6 rounded-lg border-2 ${isChecked ? 'bg-teal-700 border-teal-700' : 'border-stone-200'} flex items-center justify-center">
                             ${isChecked ? '<span class="text-white text-xs">✔</span>' : ''}
                         </button>
                         <div class="flex-1">
-                            <p class="text-sm font-semibold ${isChecked ? 'line-through text-stone-400' : 'text-stone-800'}">${ex.name}</p>
-                            <p class="text-[10px] text-stone-400 font-bold uppercase tracking-widest">${ex.reps}</p>
+                            <p class="text-sm font-semibold ${isChecked ? 'line-through' : ''}">${ex.name}</p>
+                            <p class="text-[10px] text-stone-400 font-bold uppercase">${ex.reps}</p>
                         </div>
-                        <button onclick="showInfo('${day}', ${idx})" class="w-8 h-8 rounded-full bg-stone-50 text-stone-300 hover:text-teal-600 transition-colors">ⓘ</button>
-                    </div>
-                `;
+                        <button onclick="showInfo('${day}', ${idx})" class="text-stone-300">ⓘ</button>
+                    </div>`;
             }).join('');
         };
 
         const renderMenu = (day) => {
             const menu = reportData.menuSemanal[day];
-            document.getElementById('menu-day-name').textContent = day;
             const container = document.getElementById('menu-container');
             container.innerHTML = menu.map(m => `
-                <div class="p-5 bg-white border border-stone-100 rounded-2xl shadow-sm">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-bold text-teal-700 uppercase tracking-widest">${m.time}</span>
-                        <button onclick="showRecipe('${m.meal}', '${m.recipe}')" class="text-[10px] text-stone-300 hover:text-teal-600 font-bold uppercase">Ver Receta</button>
-                    </div>
-                    <p class="text-sm text-stone-800 font-medium">${m.meal}</p>
-                </div>
-            `).join('');
+                <div class="p-4 bg-white border border-stone-50 rounded-2xl shadow-sm">
+                    <p class="text-[9px] font-bold text-teal-700 uppercase mb-1">${m.time}</p>
+                    <p class="text-xs font-bold text-stone-800">${m.meal}</p>
+                    <button onclick="showRecipe('${m.meal}', '${m.recipe}')" class="text-[9px] text-stone-400 mt-2 block uppercase font-bold underline">Instrucciones</button>
+                </div>`).join('');
         };
 
         const renderWeightTable = () => {
@@ -356,40 +291,57 @@
                     const d = (item.weight - weightHistory[idx + 1].weight).toFixed(1);
                     diff = d > 0 ? `<span class="text-red-400">+${d}</span>` : `<span class="text-teal-600">${d}</span>`;
                 }
-                return `<tr><td class="px-6 py-4 text-stone-400">${new Date(item.date).toLocaleDateString()}</td><td class="px-6 py-4 font-bold">${item.weight} kg</td><td class="px-6 py-4">${diff}</td></tr>`;
+                return `<tr><td class="px-6 py-3 text-stone-400">${new Date(item.date).toLocaleDateString()}</td><td class="px-6 py-3 font-bold">${item.weight}kg</td><td class="px-6 py-3">${diff}</td></tr>`;
             }).join('');
+        };
+
+        const updateChart = () => {
+            if (!chartInstance) {
+                const ctx = document.getElementById('progressChart').getContext('2d');
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Sem 0', 'Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+                        datasets: [
+                            { label: 'Objetivo', data: [0, -1.2, -2.5, -3.8, -5.0], borderColor: '#0f766e', borderDash: [5,5], tension: 0.4 },
+                            { label: 'Real', data: [], borderColor: '#f43f5e', tension: 0.4, pointRadius: 5 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { color: '#a8a29e', font: {size: 10} }, grid: { display: false } } } }
+                });
+            }
+
+            if (weightHistory.length > 0) {
+                const startWeight = weightHistory[weightHistory.length - 1].weight;
+                const progressData = [...weightHistory].reverse().map(w => w.weight - startWeight);
+                chartInstance.data.datasets[1].data = progressData;
+                chartInstance.update();
+            }
         };
 
         window.showInfo = (day, idx) => {
             const ex = reportData.rutinas[day].exercises[idx];
             document.getElementById('modal-title').textContent = ex.name;
-            document.getElementById('modal-content').innerHTML = `<p>${ex.how}</p><p class="mt-4 font-bold text-teal-700">Objetivo: ${ex.reps}</p>`;
+            document.getElementById('modal-content').innerHTML = `<p>${ex.how}</p>`;
             document.getElementById('info-modal').classList.remove('hidden');
         };
 
         window.showRecipe = (title, recipe) => {
             document.getElementById('modal-title').textContent = title;
-            document.getElementById('modal-content').innerHTML = `<p class="italic text-stone-400 mb-4">Instrucciones de preparación:</p><p>${recipe}</p>`;
+            document.getElementById('modal-content').innerHTML = `<p>${recipe}</p>`;
             document.getElementById('info-modal').classList.remove('hidden');
         };
 
         window.closeModal = () => document.getElementById('info-modal').classList.add('hidden');
 
-        function initChart() {
-            const ctx = document.getElementById('progressChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Sem 0', 'Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
-                    datasets: [{ label: 'Objetivo', data: [0, -1.2, -2.5, -3.8, -5.0], borderColor: '#0f766e', backgroundColor: 'rgba(15, 118, 110, 0.05)', borderWidth: 2, pointRadius: 4, tension: 0.4 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { color: '#a8a29e', font: { size: 10 } }, grid: { display: false } } } }
+        window.switchTab = (tabId) => {
+            ['resumen', 'nutricion', 'rutina'].forEach(id => {
+                document.getElementById(`btn-${id}`).classList.toggle('tab-active', id === tabId);
+                document.getElementById(`view-${id}`).classList.toggle('hidden', id !== tabId);
             });
-        }
+        };
 
-        document.getElementById('reglas-container').innerHTML = reportData.reglas.map(r => `<li>${r}</li>`).join('');
         initAuth();
-        initChart();
         selectDay('Lunes');
     </script>
 </body>
