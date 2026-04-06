@@ -6,6 +6,16 @@
     <title>Plan de Transformación: Bienestar y Vitalidad</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        window.firebaseTools = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc };
+    </script>
+
     <style>
         .chart-container {
             position: relative;
@@ -27,7 +37,7 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .tab-active {
-            border-bottom: 2px solid #0f766e; /* teal-700 */
+            border-bottom: 2px solid #0f766e;
             color: #0f766e;
             font-weight: 600;
         }
@@ -36,10 +46,19 @@
             color: white;
             border-color: #0f766e;
         }
+        .hidden-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .check-pill {
+            transition: all 0.2s ease;
+        }
+        .check-pill:active {
+            transform: scale(0.95);
+        }
     </style>
-    <!-- Chosen Palette: Warm Neutrals (Stone/Zinc) with deep Teal accents for a calm, organic, and focused feel. -->
-    <!-- Application Structure Plan: Dashboard approach with three primary functional tabs: 'Visión General' (for motivation and tracking expectations), 'Plan Nutricional' (for dietary guidelines and daily menu), and 'Rutina de Ejercicio' (for daily actionable workouts). This separation prevents cognitive overload, allowing the user to focus on the specific task at hand while keeping the overall goal (-5kg) ever-present. -->
-    <!-- Visualization & Content Choices: Line chart (Chart.js) -> Shows the expected trajectory of weight loss over 4 weeks -> Visualizing success motivates adherence. Interactive day selector -> Breaks down the weekly routine -> Prevents feeling overwhelmed by the whole week's plan at once. Rule cards -> Organizes nutrition principles cleanly. Confirming NO SVG/Mermaid used. -->
+    <!-- Chosen Palette: Warm Neutrals (Stone/Zinc) with deep Teal accents. -->
+    <!-- Application Structure Plan: Integrated Daily Recipes that change with the day selector. Removed fish, included lean meats (beef, turkey, chicken). Maintain Firebase persistence for weight and exercise checks. -->
+    <!-- Visualization & Content Choices: Interactive Line Chart. Dynamic Menu table that updates on day click. Instructions for each meat-based recipe. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans leading-relaxed tracking-wide min-h-screen">
@@ -47,98 +66,94 @@
     <div class="max-w-5xl mx-auto px-4 py-8 md:py-12">
         
         <header class="text-center mb-10">
-            <h1 class="text-3xl md:text-4xl font-light text-stone-900 tracking-tight mb-2">Bienestar y Vitalidad</h1>
-            <p class="text-lg text-teal-700 font-medium">Plan de Transformación • Objetivo: -5kg</p>
-            <p class="text-sm text-stone-500 mt-2 max-w-2xl mx-auto">Un enfoque gradual y saludable priorizando la salud metabólica, la tonificación muscular y el bienestar general.</p>
+            <h1 class="text-3xl md:text-4xl font-light text-stone-900 tracking-tight mb-2 uppercase tracking-[0.2em]">Bienestar</h1>
+            <p class="text-xs text-stone-500 font-bold tracking-[0.4em] uppercase mb-4">Deviria • Elevando el Alma</p>
+            <div id="auth-status" class="text-[10px] text-teal-600 font-semibold uppercase tracking-widest">Sincronizando...</div>
         </header>
 
-        <nav class="flex justify-center border-b border-stone-200 mb-8 overflow-x-auto">
-            <button onclick="switchTab('resumen')" id="btn-resumen" class="tab-active px-6 py-3 text-sm uppercase tracking-wider transition-colors hover:text-teal-700 whitespace-nowrap">📋 Visión General</button>
-            <button onclick="switchTab('nutricion')" id="btn-nutricion" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">🥗 Nutrición</button>
-            <button onclick="switchTab('rutina')" id="btn-rutina" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">💪 Rutina</button>
+        <!-- Selector de Día Unificado -->
+        <div class="flex flex-wrap gap-2 justify-center mb-8 bg-white p-3 rounded-2xl shadow-sm border border-stone-100 overflow-x-auto hidden-scrollbar">
+            <button onclick="selectDay('Lunes')" id="btn-day-Lunes" class="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-stone-100 transition-all hover:bg-stone-50">Lunes</button>
+            <button onclick="selectDay('Martes')" id="btn-day-Martes" class="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-stone-100 transition-all hover:bg-stone-50">Martes</button>
+            <button onclick="selectDay('Miércoles')" id="btn-day-Miércoles" class="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-stone-100 transition-all hover:bg-stone-50">Miércoles</button>
+            <button onclick="selectDay('Jueves')" id="btn-day-Jueves" class="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-stone-100 transition-all hover:bg-stone-50">Jueves</button>
+            <button onclick="selectDay('Viernes')" id="btn-day-Viernes" class="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-stone-100 transition-all hover:bg-stone-50">Viernes</button>
+            <button onclick="selectDay('Sábado')" id="btn-day-Sábado" class="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-stone-100 transition-all hover:bg-stone-50">Sábado</button>
+            <button onclick="selectDay('Domingo')" id="btn-day-Domingo" class="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border border-stone-100 transition-all hover:bg-stone-50">Domingo</button>
+        </div>
+
+        <nav class="flex justify-center border-b border-stone-200 mb-8 overflow-x-auto hidden-scrollbar">
+            <button onclick="switchTab('rutina')" id="btn-rutina" class="tab-active px-6 py-3 text-sm uppercase tracking-wider transition-colors hover:text-teal-700 whitespace-nowrap">💪 Rutina Diaria</button>
+            <button onclick="switchTab('nutricion')" id="btn-nutricion" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">🥗 Menú del Día</button>
+            <button onclick="switchTab('resumen')" id="btn-resumen" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">📊 Progreso & Peso</button>
         </nav>
 
-        <main id="content-area" class="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 md:p-8 min-h-[60vh]">
+        <main id="content-area" class="bg-white rounded-3xl shadow-sm border border-stone-100 p-6 md:p-10 min-h-[60vh]">
             
-            <!-- VIEW: RESUMEN -->
-            <section id="view-resumen" class="fade-in block">
+            <!-- VIEW: RUTINA -->
+            <section id="view-rutina" class="fade-in block">
                 <div class="mb-8">
-                    <h2 class="text-2xl font-light text-stone-800 mb-3">Tu Camino Hacia el Objetivo</h2>
-                    <p class="text-stone-600 text-sm md:text-base leading-relaxed">
-                        Esta sección te proporciona una perspectiva general de tu meta de reducción de 5 kilos. El gráfico ilustra la progresión esperada y saludable a lo largo de 4 semanas (0.5kg a 1kg por semana). Además, encontrarás los pilares fundamentales para garantizar el éxito y mantener tu vitalidad durante el proceso.
-                    </p>
+                    <h2 class="text-2xl font-light text-stone-800 mb-3" id="routine-title-display">Checklist de Entrenamiento</h2>
+                    <p class="text-stone-600 text-sm md:text-base" id="routine-subtitle-display"></p>
                 </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div class="bg-stone-50 p-6 rounded-xl border border-stone-100">
-                        <h3 class="text-center text-sm uppercase tracking-widest text-stone-500 mb-6 font-semibold">Proyección de Pérdida de Peso</h3>
-                        <div class="chart-container">
-                            <canvas id="progressChart"></canvas>
-                        </div>
-                        <p class="text-xs text-center text-stone-400 mt-4">*Proyección estimada basada en adherencia al plan.</p>
-                    </div>
-
-                    <div>
-                        <h3 class="text-lg font-medium text-stone-800 mb-6 flex items-center gap-2">⭐ Consejos para el Éxito</h3>
-                        <div class="space-y-4" id="consejos-container">
-                            <!-- Filled by JS -->
-                        </div>
-                    </div>
-                </div>
+                <div id="routine-exercises" class="max-w-2xl mx-auto w-full space-y-4"></div>
             </section>
 
-            <!-- VIEW: NUTRICION -->
+            <!-- VIEW: NUTRICION (Recetas Cambiantes) -->
             <section id="view-nutricion" class="fade-in hidden">
                  <div class="mb-8">
-                    <h2 class="text-2xl font-light text-stone-800 mb-3">Pilares de la Nutrición</h2>
-                    <p class="text-stone-600 text-sm md:text-base leading-relaxed">
-                        Explora las reglas fundamentales para mantener un déficit calórico controlado sin sacrificar nutrientes. A continuación, encontrarás tus pautas diarias y un ejemplo de menú diseñado para proteger tu tejido muscular y proporcionar energía sostenida.
-                    </p>
+                    <h2 class="text-2xl font-light text-stone-800 mb-2">Nutrición Sin Pescado</h2>
+                    <p class="text-stone-500 text-xs uppercase tracking-widest font-bold mb-6">Proteínas de Origen Terrestre • DEVIRIA Food</p>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
-                    <div class="md:col-span-2 space-y-4">
-                        <h3 class="text-sm uppercase tracking-widest text-stone-500 font-semibold mb-4 border-b border-stone-100 pb-2">Reglas de Oro</h3>
-                        <ul id="reglas-container" class="space-y-3 text-sm text-stone-700">
-                            <!-- Filled by JS -->
-                        </ul>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                    <div class="md:col-span-1 space-y-6">
+                        <div class="bg-stone-50 p-6 rounded-2xl border border-stone-100">
+                            <h3 class="text-[10px] uppercase tracking-widest text-teal-700 font-bold mb-4">Reglas DEVIRIA</h3>
+                            <ul id="reglas-container" class="space-y-4 text-xs text-stone-600 leading-relaxed"></ul>
+                        </div>
                     </div>
 
-                    <div class="md:col-span-3 bg-stone-50 rounded-xl p-6 border border-stone-100">
-                        <h3 class="text-sm uppercase tracking-widest text-stone-500 font-semibold mb-6 text-center">Ejemplo de Menú Diario</h3>
-                        <div id="menu-container" class="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-stone-300 before:to-transparent">
-                            <!-- Filled by JS -->
-                        </div>
+                    <div class="md:col-span-2">
+                        <h3 class="text-sm uppercase tracking-widest text-stone-400 font-bold mb-6 flex items-center gap-2">
+                            <span id="menu-day-name" class="text-stone-800">Lunes</span> • Protocolo Nutricional
+                        </h3>
+                        <div id="menu-container" class="space-y-4"></div>
                     </div>
                 </div>
             </section>
 
-            <!-- VIEW: RUTINA -->
-            <section id="view-rutina" class="fade-in hidden">
-                <div class="mb-8">
-                    <h2 class="text-2xl font-light text-stone-800 mb-3">Programa de Entrenamiento (4 Semanas)</h2>
-                    <p class="text-stone-600 text-sm md:text-base leading-relaxed">
-                        Selecciona un día de la semana para ver tu rutina específica. Este plan combina entrenamiento de fuerza para elevar el metabolismo basal con ráfagas de cardio y días esenciales de descanso activo o movilidad para asegurar una recuperación óptima.
-                    </p>
-                </div>
-
-                <div class="flex flex-wrap gap-2 justify-center mb-8">
-                    <button onclick="selectDay('Lunes')" id="btn-day-Lunes" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Lunes</button>
-                    <button onclick="selectDay('Martes')" id="btn-day-Martes" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Martes</button>
-                    <button onclick="selectDay('Miércoles')" id="btn-day-Miércoles" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Miércoles</button>
-                    <button onclick="selectDay('Jueves')" id="btn-day-Jueves" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Jueves</button>
-                    <button onclick="selectDay('Viernes')" id="btn-day-Viernes" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Viernes</button>
-                    <button onclick="selectDay('Sábado')" id="btn-day-Sábado" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Sábado</button>
-                    <button onclick="selectDay('Domingo')" id="btn-day-Domingo" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Domingo</button>
-                </div>
-
-                <div class="bg-stone-50 rounded-xl p-6 md:p-10 border border-stone-100 min-h-[300px] flex flex-col justify-center transition-all duration-300" id="routine-content-area">
-                    <div class="text-center">
-                        <h3 id="routine-title" class="text-xl md:text-2xl font-medium text-teal-800 mb-2">Selecciona un día</h3>
-                        <p id="routine-subtitle" class="text-sm text-stone-500 mb-8 uppercase tracking-widest"></p>
+            <!-- VIEW: RESUMEN -->
+            <section id="view-resumen" class="fade-in hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <div>
+                        <h3 class="text-lg font-light text-stone-800 mb-6 underline decoration-teal-100 decoration-4">Proyección de Peso</h3>
+                        <div class="chart-container bg-stone-50 rounded-2xl p-4 border border-stone-100 shadow-inner">
+                            <canvas id="progressChart"></canvas>
+                        </div>
                     </div>
-                    <div id="routine-exercises" class="max-w-2xl mx-auto w-full space-y-3">
-                        <!-- Filled by JS -->
+
+                    <div class="space-y-6">
+                        <div class="bg-white p-8 rounded-3xl border border-stone-200 shadow-sm">
+                            <h3 class="text-xs uppercase tracking-widest text-stone-500 font-bold mb-6">Ingresar Registro</h3>
+                            <div class="flex gap-3">
+                                <input type="number" id="input-peso" step="0.1" placeholder="Peso en kg" class="flex-1 px-5 py-3 border border-stone-100 rounded-xl bg-stone-50 outline-none focus:ring-2 focus:ring-teal-500/20 transition-all">
+                                <button onclick="saveWeight()" class="bg-stone-900 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-stone-800 transition-all shadow-lg">Guardar</button>
+                            </div>
+                        </div>
+
+                        <div class="max-h-[300px] overflow-y-auto rounded-2xl border border-stone-100 hidden-scrollbar">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-stone-50 text-stone-400 uppercase tracking-widest sticky top-0">
+                                    <tr>
+                                        <th class="px-6 py-4 font-bold">Fecha</th>
+                                        <th class="px-6 py-4 font-bold">Peso</th>
+                                        <th class="px-6 py-4 font-bold">Δ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weight-table-body" class="divide-y divide-stone-50"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -146,207 +161,236 @@
         </main>
     </div>
 
-    <script>
-        // --- Data Storage ---
+    <!-- Modal Informativo -->
+    <div id="info-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-md z-50 hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in fade-in zoom-in duration-300 border border-stone-100">
+            <h4 id="modal-title" class="text-xl font-light text-stone-800 mb-4 border-b border-stone-50 pb-2 uppercase tracking-tighter"></h4>
+            <div id="modal-content" class="text-sm text-stone-600 leading-relaxed space-y-4"></div>
+            <button onclick="closeModal()" class="mt-8 w-full py-4 bg-teal-800 text-white rounded-2xl font-bold uppercase tracking-[0.2em] text-[10px] hover:bg-teal-900 shadow-lg transition-all">Cerrar Guía</button>
+        </div>
+    </div>
+
+    <script type="module">
+        const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc } = window.firebaseTools;
+
+        const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'plan-vital-v2';
+
+        let currentUser = null;
+        let weightHistory = [];
+        let exerciseProgress = {};
+        let currentDayGlobal = 'Lunes';
+
         const reportData = {
-            consejos: [
-                { icon: "💤", title: "Sueño Reparador", desc: "Duerme entre 7 y 8 horas. La falta de sueño aumenta el hambre y el estrés." },
-                { icon: "🧘", title: "Mindful Eating", desc: "Come sin distracciones (lejos del móvil). Disfruta de la textura y el sabor." },
-                { icon: "⚖️", title: "Consistencia sobre Perfección", desc: "Si un día no puedes cumplir el plan, retómalo en la siguiente comida." },
-                { icon: "📸", title: "Seguimiento Inteligente", desc: "Pésate una vez por semana en ayunas y toma fotos; la báscula no lo es todo." }
-            ],
             reglas: [
-                "🍗 <b>Prioriza la Proteína:</b> Incluye una fuente en cada comida (pollo, pescado, huevos, tofu, legumbres).",
-                "🌾 <b>Carbohidratos Complejos:</b> Avena, quinoa, camote o arroz integral (preferible temprano o pre-entreno).",
-                "🥑 <b>Grasas Saludables:</b> Aguacate, frutos secos y aceite de oliva virgen extra en moderación.",
-                "💧 <b>Hidratación:</b> 2-2.5 litros diarios. Infusiona con pepino o limón.",
-                "🥬 <b>Cenas Ligeras:</b> Reduce carga glucémica de noche con vegetales verdes y proteína magra."
+                "🥩 <b>Carnes Magras:</b> Prioriza pollo, pavo y ternera magra.",
+                "🚫 <b>Sin Pescado:</b> Sustituye el omega-3 con semillas de chía o nueces.",
+                "🥦 <b>Verdes:</b> 50% de tu plato en la cena debe ser verde.",
+                "💧 <b>Agua:</b> Toma un vaso antes de cada comida para saciedad.",
+                "🌑 <b>Ayuno nocturno:</b> Mínimo 12 horas entre cena y desayuno."
             ],
-            menu: [
-                { time: "Desayuno", meal: "Omelet de 2 claras y 1 huevo entero con espinacas y champiñones + 1/2 aguacate pequeño + Té verde." },
-                { time: "Media Mañana", meal: "Una pieza de fruta (manzana verde o bayas) + un puñado pequeño de almendras." },
-                { time: "Almuerzo", meal: "Pechuga de pollo a la plancha con hierbas + 1/2 taza de quinoa + ensalada verde, rábano, tomate y limón." },
-                { time: "Merienda", meal: "Yogur griego natural (sin azúcar) con una pizca de canela." },
-                { time: "Cena", meal: "Filete de salmón o pescado blanco al horno + espárragos y brócoli al vapor con aceite de oliva." }
-            ],
+            menuSemanal: {
+                "Lunes": [
+                    { time: "Desayuno", meal: "Huevos revueltos con espinacas y 1/2 aguacate.", recipe: "Bate 2 claras y 1 huevo. Saltea espinacas frescas. Acompaña con aguacate laminado." },
+                    { time: "Almuerzo", meal: "Pechuga de pollo a la plancha con quinoa.", recipe: "150g de pollo sazonado con limón y pimienta. 1/2 taza de quinoa cocida." },
+                    { time: "Cena", meal: "Ternera magra saltada con brócoli.", recipe: "120g de bistec de ternera en tiras. Saltea con brócoli al dente y un toque de jengibre." }
+                ],
+                "Martes": [
+                    { time: "Desayuno", meal: "Tortilla de claras con jamón de pavo.", recipe: "3 claras de huevo y 2 lonjas de pavo picadas. Cocinar a fuego lento." },
+                    { time: "Almuerzo", meal: "Bistec de ternera con espárragos.", recipe: "150g de ternera a la parrilla. 8 espárragos trigueros al vapor." },
+                    { time: "Cena", meal: "Ensalada de pollo y nueces.", recipe: "Pollo desmechado, mix de hojas verdes, rábano y 4 nueces troceadas." }
+                ],
+                "Miércoles": [
+                    { time: "Desayuno", meal: "Yogur griego con semillas de chía y canela.", recipe: "Yogur natural sin azúcar. Deja reposar la chía 5 min para que hidrate." },
+                    { time: "Almuerzo", meal: "Muslo de pollo sin piel con camote.", recipe: "Pollo al horno con romero. 100g de camote (batata) asado." },
+                    { time: "Cena", meal: "Tiras de pavo con calabacín.", recipe: "Saltea pavo con espirales de calabacín y un chorrito de aceite de oliva." }
+                ],
+                "Jueves": [
+                    { time: "Desayuno", meal: "Omelet de champiñones y pavo.", recipe: "2 huevos, champiñones laminados y pavo picado. Doblar y servir caliente." },
+                    { time: "Almuerzo", meal: "Bowl de ternera picada y arroz integral.", recipe: "120g de ternera molida magra, 1/3 taza de arroz integral y pimientos rojos." },
+                    { time: "Cena", meal: "Pechuga de pollo al limón con judías verdes.", recipe: "Pollo al vapor con rodajas de limón. Judías verdes salteadas con ajo." }
+                ],
+                "Viernes": [
+                    { time: "Desayuno", meal: "Huevos poché sobre cama de rúcula.", recipe: "2 huevos escalfados. Rúcula aliñada con limón y pimienta negra." },
+                    { time: "Almuerzo", meal: "Pavo a la naranja con ensalada mixta.", recipe: "Pechuga de pavo sellada con jugo de naranja natural. Ensalada de tomate y pepino." },
+                    { time: "Cena", meal: "Albóndigas de ternera caseras (sin pan).", recipe: "Carne molida con perejil y ajo. Cocinar en salsa de tomate natural." }
+                ],
+                "Sábado": [
+                    { time: "Desayuno", meal: "Revuelto de huevos con tomate cherry.", recipe: "Saltea los tomates antes de añadir los huevos para que suelten su jugo." },
+                    { time: "Almuerzo", meal: "Pollo al curry con coliflor.", recipe: "Pechuga de pollo en cubos con especias de curry. Coliflor picada estilo 'arroz'." },
+                    { time: "Cena", meal: "Carpaccio de ternera con parmesano (moderado).", recipe: "Láminas finas de ternera cruda de alta calidad con rúcula y limón." }
+                ],
+                "Domingo": [
+                    { time: "Desayuno", meal: "Muffins de huevo y vegetales.", recipe: "Bate huevos con pimientos y cebolla. Hornea en moldes de 15 a 20 min." },
+                    { time: "Almuerzo", meal: "Asado de ternera dominical con verduras.", recipe: "Corte magro al horno con zanahorias y cebollas asadas." },
+                    { time: "Cena", meal: "Sopa de pollo clara con mucho apio.", recipe: "Caldo natural, trozos de pollo y apio picado. Muy digestivo antes de dormir." }
+                ]
+            },
             rutinas: {
-                "Lunes": { type: "Tren Inferior y Glúteos", exercises: ["Sentadillas (Squats): 4 series x 15 repeticiones.", "Zancadas (Lunges) hacia atrás: 3 series x 12 por pierna.", "Puente de glúteo: 4 series x 20 repeticiones.", "Finisher: 10 minutos de caminata a paso rápido con inclinación."] },
-                "Martes": { type: "Tren Superior y Core", exercises: ["Flexiones (Push-ups): 3 series x 10-12 (con rodillas si es necesario).", "Remo con mancuerna o banda elástica: 4 series x 15.", "Plancha abdominal (Plank): 3 series de 45 segundos.", "Finisher: 15 minutos de bicicleta estática a ritmo moderado."] },
-                "Miércoles": { type: "Cardio HIIT / Aeróbico", exercises: ["30-40 minutos de actividad: trote suave, natación, o clase de baile.", "Opcional: 10 intervalos de 30 segundos de sprint x 30 segundos de descanso."] },
-                "Jueves": { type: "Full Body (Cuerpo Completo)", exercises: ["Burpees (sin salto si es necesario): 3 series x 10.", "Peso muerto con kettlebell o mancuernas: 4 series x 12.", "Press militar (hombros): 3 series x 12.", "Escaladores (Mountain Climbers): 3 series de 30 segundos."] },
-                "Viernes": { type: "Movilidad y Tonificación", exercises: ["Sesión de Yoga o Pilates de 45 minutos enfocada en la postura y el estiramiento profundo."] },
-                "Sábado": { type: "Descanso Activo", exercises: ["Caminatas largas al aire libre (mínimo 10,000 pasos). Ideal para conectar con el entorno y reducir cortisol."] },
-                "Domingo": { type: "Descanso Activo", exercises: ["Caminatas largas al aire libre (mínimo 10,000 pasos). Recuperación y preparación para la semana."] }
+                "Lunes": { type: "Tren Inferior", exercises: [{ name: "Sentadillas", reps: "4x15", how: "Pies al ancho de hombros, baja la cadera." }, { name: "Zancadas", reps: "3x12/p", how: "Paso largo atrás, baja rodilla trasera." }] },
+                "Martes": { type: "Tren Superior", exercises: [{ name: "Flexiones", reps: "3x12", how: "Cuerpo recto, manos bajo hombros." }, { name: "Remo", reps: "4x15", how: "Inclina el torso, tira del peso a la cadera." }] },
+                "Miércoles": { type: "Cardio", exercises: [{ name: "Caminata Rápida", reps: "40 min", how: "Paso firme sin correr." }, { name: "Abdominales", reps: "3x20", how: "Crunch controlado." }] },
+                "Jueves": { type: "Full Body", exercises: [{ name: "Burpees", reps: "3x10", how: "Salto, plancha y arriba." }, { name: "Peso Muerto", reps: "4x12", how: "Espalda recta, baja el peso rozando piernas." }] },
+                "Viernes": { type: "Movilidad", exercises: [{ name: "Yoga", reps: "45 min", how: "Enfoque en respiración." }, { name: "Estiramientos", reps: "15 min", how: "Relajación total." }] },
+                "Sábado": { type: "Activo", exercises: [{ name: "10k Pasos", reps: "Libre", how: "Caminata al aire libre." }] },
+                "Domingo": { type: "Descanso", exercises: [{ name: "Estiramiento Suave", reps: "20 min", how: "Movilidad articular ligera." }] }
             }
         };
 
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            renderConsejos();
-            renderReglas();
-            renderMenu();
-            initChart();
-            selectDay('Lunes'); // Default day
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('auth-status').textContent = "Sincronizado • DEVIRIA ID";
+                loadData();
+            }
         });
 
-        // --- Navigation Logic ---
-        function switchTab(tabId) {
-            // Update buttons
-            ['resumen', 'nutricion', 'rutina'].forEach(id => {
-                const btn = document.getElementById(`btn-${id}`);
-                btn.classList.remove('tab-active');
-                btn.classList.add('text-stone-500');
-                
-                // Hide views
-                document.getElementById(`view-${id}`).classList.add('hidden');
+        const loadData = () => {
+            if (!currentUser) return;
+            const weightRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'weights');
+            onSnapshot(weightRef, (snapshot) => {
+                weightHistory = snapshot.docs.map(doc => doc.data());
+                weightHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+                renderWeightTable();
             });
 
-            // Activate target
-            const activeBtn = document.getElementById(`btn-${tabId}`);
-            activeBtn.classList.add('tab-active');
-            activeBtn.classList.remove('text-stone-500');
-            
-            const activeView = document.getElementById(`view-${tabId}`);
-            activeView.classList.remove('hidden');
-            // Retrigger animation
-            activeView.classList.remove('fade-in');
-            void activeView.offsetWidth; 
-            activeView.classList.add('fade-in');
-        }
-
-        // --- Render Functions ---
-        function renderConsejos() {
-            const container = document.getElementById('consejos-container');
-            container.innerHTML = reportData.consejos.map(c => `
-                <div class="flex items-start gap-4 p-4 bg-white rounded-lg border border-stone-100 shadow-sm transition hover:shadow-md">
-                    <div class="text-2xl">${c.icon}</div>
-                    <div>
-                        <h4 class="font-medium text-stone-800">${c.title}</h4>
-                        <p class="text-sm text-stone-500 mt-1">${c.desc}</p>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderReglas() {
-            const container = document.getElementById('reglas-container');
-            container.innerHTML = reportData.reglas.map(r => `
-                <li class="flex items-start bg-white p-3 rounded-md border border-stone-100 shadow-sm">
-                    <span class="leading-relaxed">${r}</span>
-                </li>
-            `).join('');
-        }
-
-        function renderMenu() {
-            const container = document.getElementById('menu-container');
-            container.innerHTML = reportData.menu.map((m, idx) => `
-                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div class="flex items-center justify-center w-8 h-8 rounded-full border border-white bg-teal-100 text-teal-700 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 text-xs font-bold">
-                        ${idx + 1}
-                    </div>
-                    <div class="w-[calc(100%-2.5rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-stone-200 bg-white shadow-sm">
-                        <div class="text-xs uppercase tracking-widest text-teal-700 font-semibold mb-1">${m.time}</div>
-                        <div class="text-sm text-stone-700">${m.meal}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // --- Routine Logic ---
-        function selectDay(day) {
-            // Update buttons
-            Object.keys(reportData.rutinas).forEach(d => {
-                const btn = document.getElementById(`btn-day-${d}`);
-                btn.classList.remove('day-active');
-                if(d === day) {
-                    btn.classList.add('day-active');
+            const progressRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'daily');
+            onSnapshot(progressRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    exerciseProgress = snapshot.data();
+                    renderExercises(currentDayGlobal);
                 }
             });
+        };
 
-            // Update content
-            const data = reportData.rutinas[day];
-            document.getElementById('routine-title').textContent = day;
-            document.getElementById('routine-subtitle').textContent = data.type;
+        window.switchTab = (tabId) => {
+            ['resumen', 'nutricion', 'rutina'].forEach(id => {
+                document.getElementById(`btn-${id}`).classList.remove('tab-active');
+                document.getElementById(`btn-${id}`).classList.add('text-stone-500');
+                document.getElementById(`view-${id}`).classList.add('hidden');
+            });
+            document.getElementById(`btn-${tabId}`).classList.add('tab-active');
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+        };
+
+        window.selectDay = (day) => {
+            currentDayGlobal = day;
+            Object.keys(reportData.rutinas).forEach(d => {
+                document.getElementById(`btn-day-${d}`).classList.remove('day-active');
+            });
+            document.getElementById(`btn-day-${day}`).classList.add('day-active');
             
-            const exercisesContainer = document.getElementById('routine-exercises');
-            exercisesContainer.innerHTML = data.exercises.map(ex => `
-                <div class="bg-white p-4 rounded-lg border border-stone-200 flex items-center gap-3 shadow-sm hover:border-teal-200 transition-colors">
-                    <div class="w-2 h-2 rounded-full bg-teal-500 shrink-0"></div>
-                    <span class="text-stone-700">${ex.replace('Finisher:', '<strong class="text-teal-800">Finisher:</strong>')}</span>
+            renderExercises(day);
+            renderMenu(day);
+        };
+
+        window.toggleExercise = async (day, idx) => {
+            const key = `${day}-${idx}`;
+            exerciseProgress[key] = !exerciseProgress[key];
+            await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'progress', 'daily'), exerciseProgress);
+        };
+
+        window.saveWeight = async () => {
+            const val = document.getElementById('input-peso').value;
+            if (!val) return;
+            await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'weights'), {
+                weight: parseFloat(val),
+                date: new Date().toISOString()
+            });
+            document.getElementById('input-peso').value = '';
+        };
+
+        const renderExercises = (day) => {
+            const data = reportData.rutinas[day];
+            document.getElementById('routine-title-display').textContent = `Entrenamiento de ${day}`;
+            document.getElementById('routine-subtitle-display').textContent = data.type;
+            const container = document.getElementById('routine-exercises');
+            container.innerHTML = data.exercises.map((ex, idx) => {
+                const isChecked = exerciseProgress[`${day}-${idx}`];
+                return `
+                    <div class="flex items-center gap-4 bg-white p-5 rounded-2xl border ${isChecked ? 'border-teal-50 opacity-50' : 'border-stone-100 shadow-sm'} transition-all">
+                        <button onclick="toggleExercise('${day}', ${idx})" class="w-7 h-7 rounded-lg border-2 flex items-center justify-center shrink-0 ${isChecked ? 'bg-teal-700 border-teal-700' : 'border-stone-200'}">
+                            ${isChecked ? '<span class="text-white text-xs">✔</span>' : ''}
+                        </button>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold ${isChecked ? 'line-through text-stone-400' : 'text-stone-800'}">${ex.name}</p>
+                            <p class="text-[10px] text-stone-400 font-bold uppercase tracking-widest">${ex.reps}</p>
+                        </div>
+                        <button onclick="showInfo('${day}', ${idx})" class="w-8 h-8 rounded-full bg-stone-50 text-stone-300 hover:text-teal-600 transition-colors">ⓘ</button>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        const renderMenu = (day) => {
+            const menu = reportData.menuSemanal[day];
+            document.getElementById('menu-day-name').textContent = day;
+            const container = document.getElementById('menu-container');
+            container.innerHTML = menu.map(m => `
+                <div class="p-5 bg-white border border-stone-100 rounded-2xl shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[10px] font-bold text-teal-700 uppercase tracking-widest">${m.time}</span>
+                        <button onclick="showRecipe('${m.meal}', '${m.recipe}')" class="text-[10px] text-stone-300 hover:text-teal-600 font-bold uppercase">Ver Receta</button>
+                    </div>
+                    <p class="text-sm text-stone-800 font-medium">${m.meal}</p>
                 </div>
             `).join('');
+        };
 
-            // Small animation effect
-            const area = document.getElementById('routine-content-area');
-            area.style.opacity = '0.5';
-            setTimeout(() => { area.style.opacity = '1'; }, 100);
-        }
+        const renderWeightTable = () => {
+            const body = document.getElementById('weight-table-body');
+            body.innerHTML = weightHistory.map((item, idx) => {
+                let diff = "-";
+                if (idx < weightHistory.length - 1) {
+                    const d = (item.weight - weightHistory[idx + 1].weight).toFixed(1);
+                    diff = d > 0 ? `<span class="text-red-400">+${d}</span>` : `<span class="text-teal-600">${d}</span>`;
+                }
+                return `<tr><td class="px-6 py-4 text-stone-400">${new Date(item.date).toLocaleDateString()}</td><td class="px-6 py-4 font-bold">${item.weight} kg</td><td class="px-6 py-4">${diff}</td></tr>`;
+            }).join('');
+        };
 
-        // --- Chart Initialization ---
+        window.showInfo = (day, idx) => {
+            const ex = reportData.rutinas[day].exercises[idx];
+            document.getElementById('modal-title').textContent = ex.name;
+            document.getElementById('modal-content').innerHTML = `<p>${ex.how}</p><p class="mt-4 font-bold text-teal-700">Objetivo: ${ex.reps}</p>`;
+            document.getElementById('info-modal').classList.remove('hidden');
+        };
+
+        window.showRecipe = (title, recipe) => {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').innerHTML = `<p class="italic text-stone-400 mb-4">Instrucciones de preparación:</p><p>${recipe}</p>`;
+            document.getElementById('info-modal').classList.remove('hidden');
+        };
+
+        window.closeModal = () => document.getElementById('info-modal').classList.add('hidden');
+
         function initChart() {
             const ctx = document.getElementById('progressChart').getContext('2d');
-            
-            // Simulating weight loss: Week 0 to Week 4 (-5kg total)
-            const labels = ['Inicio', 'Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
-            const dataPts = [0, -1.2, -2.5, -3.8, -5.0];
-
             new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Kilos Reducidos',
-                        data: dataPts,
-                        borderColor: '#0f766e', // teal-700
-                        backgroundColor: 'rgba(15, 118, 110, 0.1)',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#fff',
-                        pointBorderColor: '#0f766e',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                        fill: true,
-                        tension: 0.3
-                    }]
+                    labels: ['Sem 0', 'Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+                    datasets: [{ label: 'Objetivo', data: [0, -1.2, -2.5, -3.8, -5.0], borderColor: '#0f766e', backgroundColor: 'rgba(15, 118, 110, 0.05)', borderWidth: 2, pointRadius: 4, tension: 0.4 }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: 'rgba(28, 25, 23, 0.9)', // stone-900
-                            titleFont: { size: 13, family: 'sans-serif' },
-                            bodyFont: { size: 14, weight: 'bold', family: 'sans-serif' },
-                            padding: 10,
-                            displayColors: false,
-                            callbacks: {
-                                label: function(context) {
-                                    return context.parsed.y + ' kg';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            title: { display: true, text: 'Progreso (kg)', color: '#78716c', font: {size: 12} },
-                            grid: { color: '#f5f5f4', borderDash: [5, 5] },
-                            ticks: { color: '#a8a29e', stepSize: 1 },
-                            max: 0.5,
-                            min: -5.5
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#78716c' }
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index',
-                    },
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { ticks: { color: '#a8a29e', font: { size: 10 } }, grid: { display: false } } } }
             });
         }
+
+        document.getElementById('reglas-container').innerHTML = reportData.reglas.map(r => `<li>${r}</li>`).join('');
+        initAuth();
+        initChart();
+        selectDay('Lunes');
     </script>
 </body>
 </html>
