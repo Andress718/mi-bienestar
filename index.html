@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plan de Transformación: Bienestar y Vitalidad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 350px; }
+        }
+        .fade-in {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tab-active {
+            border-bottom: 2px solid #0f766e; /* teal-700 */
+            color: #0f766e;
+            font-weight: 600;
+        }
+        .day-active {
+            background-color: #0f766e;
+            color: white;
+            border-color: #0f766e;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Neutrals (Stone/Zinc) with deep Teal accents for a calm, organic, and focused feel. -->
+    <!-- Application Structure Plan: Dashboard approach with three primary functional tabs: 'Visión General' (for motivation and tracking expectations), 'Plan Nutricional' (for dietary guidelines and daily menu), and 'Rutina de Ejercicio' (for daily actionable workouts). This separation prevents cognitive overload, allowing the user to focus on the specific task at hand while keeping the overall goal (-5kg) ever-present. -->
+    <!-- Visualization & Content Choices: Line chart (Chart.js) -> Shows the expected trajectory of weight loss over 4 weeks -> Visualizing success motivates adherence. Interactive day selector -> Breaks down the weekly routine -> Prevents feeling overwhelmed by the whole week's plan at once. Rule cards -> Organizes nutrition principles cleanly. Confirming NO SVG/Mermaid used. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+</head>
+<body class="bg-stone-50 text-stone-800 font-sans leading-relaxed tracking-wide min-h-screen">
+
+    <div class="max-w-5xl mx-auto px-4 py-8 md:py-12">
+        
+        <header class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-light text-stone-900 tracking-tight mb-2">Bienestar y Vitalidad</h1>
+            <p class="text-lg text-teal-700 font-medium">Plan de Transformación • Objetivo: -5kg</p>
+            <p class="text-sm text-stone-500 mt-2 max-w-2xl mx-auto">Un enfoque gradual y saludable priorizando la salud metabólica, la tonificación muscular y el bienestar general.</p>
+        </header>
+
+        <nav class="flex justify-center border-b border-stone-200 mb-8 overflow-x-auto">
+            <button onclick="switchTab('resumen')" id="btn-resumen" class="tab-active px-6 py-3 text-sm uppercase tracking-wider transition-colors hover:text-teal-700 whitespace-nowrap">📋 Visión General</button>
+            <button onclick="switchTab('nutricion')" id="btn-nutricion" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">🥗 Nutrición</button>
+            <button onclick="switchTab('rutina')" id="btn-rutina" class="px-6 py-3 text-sm uppercase tracking-wider text-stone-500 transition-colors hover:text-teal-700 whitespace-nowrap">💪 Rutina</button>
+        </nav>
+
+        <main id="content-area" class="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 md:p-8 min-h-[60vh]">
+            
+            <!-- VIEW: RESUMEN -->
+            <section id="view-resumen" class="fade-in block">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-light text-stone-800 mb-3">Tu Camino Hacia el Objetivo</h2>
+                    <p class="text-stone-600 text-sm md:text-base leading-relaxed">
+                        Esta sección te proporciona una perspectiva general de tu meta de reducción de 5 kilos. El gráfico ilustra la progresión esperada y saludable a lo largo de 4 semanas (0.5kg a 1kg por semana). Además, encontrarás los pilares fundamentales para garantizar el éxito y mantener tu vitalidad durante el proceso.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div class="bg-stone-50 p-6 rounded-xl border border-stone-100">
+                        <h3 class="text-center text-sm uppercase tracking-widest text-stone-500 mb-6 font-semibold">Proyección de Pérdida de Peso</h3>
+                        <div class="chart-container">
+                            <canvas id="progressChart"></canvas>
+                        </div>
+                        <p class="text-xs text-center text-stone-400 mt-4">*Proyección estimada basada en adherencia al plan.</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-medium text-stone-800 mb-6 flex items-center gap-2">⭐ Consejos para el Éxito</h3>
+                        <div class="space-y-4" id="consejos-container">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: NUTRICION -->
+            <section id="view-nutricion" class="fade-in hidden">
+                 <div class="mb-8">
+                    <h2 class="text-2xl font-light text-stone-800 mb-3">Pilares de la Nutrición</h2>
+                    <p class="text-stone-600 text-sm md:text-base leading-relaxed">
+                        Explora las reglas fundamentales para mantener un déficit calórico controlado sin sacrificar nutrientes. A continuación, encontrarás tus pautas diarias y un ejemplo de menú diseñado para proteger tu tejido muscular y proporcionar energía sostenida.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
+                    <div class="md:col-span-2 space-y-4">
+                        <h3 class="text-sm uppercase tracking-widest text-stone-500 font-semibold mb-4 border-b border-stone-100 pb-2">Reglas de Oro</h3>
+                        <ul id="reglas-container" class="space-y-3 text-sm text-stone-700">
+                            <!-- Filled by JS -->
+                        </ul>
+                    </div>
+
+                    <div class="md:col-span-3 bg-stone-50 rounded-xl p-6 border border-stone-100">
+                        <h3 class="text-sm uppercase tracking-widest text-stone-500 font-semibold mb-6 text-center">Ejemplo de Menú Diario</h3>
+                        <div id="menu-container" class="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-stone-300 before:to-transparent">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: RUTINA -->
+            <section id="view-rutina" class="fade-in hidden">
+                <div class="mb-8">
+                    <h2 class="text-2xl font-light text-stone-800 mb-3">Programa de Entrenamiento (4 Semanas)</h2>
+                    <p class="text-stone-600 text-sm md:text-base leading-relaxed">
+                        Selecciona un día de la semana para ver tu rutina específica. Este plan combina entrenamiento de fuerza para elevar el metabolismo basal con ráfagas de cardio y días esenciales de descanso activo o movilidad para asegurar una recuperación óptima.
+                    </p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 justify-center mb-8">
+                    <button onclick="selectDay('Lunes')" id="btn-day-Lunes" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Lunes</button>
+                    <button onclick="selectDay('Martes')" id="btn-day-Martes" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Martes</button>
+                    <button onclick="selectDay('Miércoles')" id="btn-day-Miércoles" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Miércoles</button>
+                    <button onclick="selectDay('Jueves')" id="btn-day-Jueves" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Jueves</button>
+                    <button onclick="selectDay('Viernes')" id="btn-day-Viernes" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Viernes</button>
+                    <button onclick="selectDay('Sábado')" id="btn-day-Sábado" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Sábado</button>
+                    <button onclick="selectDay('Domingo')" id="btn-day-Domingo" class="px-4 py-2 rounded-full text-sm font-medium border border-stone-200 text-stone-600 transition-colors hover:bg-stone-100">Domingo</button>
+                </div>
+
+                <div class="bg-stone-50 rounded-xl p-6 md:p-10 border border-stone-100 min-h-[300px] flex flex-col justify-center transition-all duration-300" id="routine-content-area">
+                    <div class="text-center">
+                        <h3 id="routine-title" class="text-xl md:text-2xl font-medium text-teal-800 mb-2">Selecciona un día</h3>
+                        <p id="routine-subtitle" class="text-sm text-stone-500 mb-8 uppercase tracking-widest"></p>
+                    </div>
+                    <div id="routine-exercises" class="max-w-2xl mx-auto w-full space-y-3">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // --- Data Storage ---
+        const reportData = {
+            consejos: [
+                { icon: "💤", title: "Sueño Reparador", desc: "Duerme entre 7 y 8 horas. La falta de sueño aumenta el hambre y el estrés." },
+                { icon: "🧘", title: "Mindful Eating", desc: "Come sin distracciones (lejos del móvil). Disfruta de la textura y el sabor." },
+                { icon: "⚖️", title: "Consistencia sobre Perfección", desc: "Si un día no puedes cumplir el plan, retómalo en la siguiente comida." },
+                { icon: "📸", title: "Seguimiento Inteligente", desc: "Pésate una vez por semana en ayunas y toma fotos; la báscula no lo es todo." }
+            ],
+            reglas: [
+                "🍗 <b>Prioriza la Proteína:</b> Incluye una fuente en cada comida (pollo, pescado, huevos, tofu, legumbres).",
+                "🌾 <b>Carbohidratos Complejos:</b> Avena, quinoa, camote o arroz integral (preferible temprano o pre-entreno).",
+                "🥑 <b>Grasas Saludables:</b> Aguacate, frutos secos y aceite de oliva virgen extra en moderación.",
+                "💧 <b>Hidratación:</b> 2-2.5 litros diarios. Infusiona con pepino o limón.",
+                "🥬 <b>Cenas Ligeras:</b> Reduce carga glucémica de noche con vegetales verdes y proteína magra."
+            ],
+            menu: [
+                { time: "Desayuno", meal: "Omelet de 2 claras y 1 huevo entero con espinacas y champiñones + 1/2 aguacate pequeño + Té verde." },
+                { time: "Media Mañana", meal: "Una pieza de fruta (manzana verde o bayas) + un puñado pequeño de almendras." },
+                { time: "Almuerzo", meal: "Pechuga de pollo a la plancha con hierbas + 1/2 taza de quinoa + ensalada verde, rábano, tomate y limón." },
+                { time: "Merienda", meal: "Yogur griego natural (sin azúcar) con una pizca de canela." },
+                { time: "Cena", meal: "Filete de salmón o pescado blanco al horno + espárragos y brócoli al vapor con aceite de oliva." }
+            ],
+            rutinas: {
+                "Lunes": { type: "Tren Inferior y Glúteos", exercises: ["Sentadillas (Squats): 4 series x 15 repeticiones.", "Zancadas (Lunges) hacia atrás: 3 series x 12 por pierna.", "Puente de glúteo: 4 series x 20 repeticiones.", "Finisher: 10 minutos de caminata a paso rápido con inclinación."] },
+                "Martes": { type: "Tren Superior y Core", exercises: ["Flexiones (Push-ups): 3 series x 10-12 (con rodillas si es necesario).", "Remo con mancuerna o banda elástica: 4 series x 15.", "Plancha abdominal (Plank): 3 series de 45 segundos.", "Finisher: 15 minutos de bicicleta estática a ritmo moderado."] },
+                "Miércoles": { type: "Cardio HIIT / Aeróbico", exercises: ["30-40 minutos de actividad: trote suave, natación, o clase de baile.", "Opcional: 10 intervalos de 30 segundos de sprint x 30 segundos de descanso."] },
+                "Jueves": { type: "Full Body (Cuerpo Completo)", exercises: ["Burpees (sin salto si es necesario): 3 series x 10.", "Peso muerto con kettlebell o mancuernas: 4 series x 12.", "Press militar (hombros): 3 series x 12.", "Escaladores (Mountain Climbers): 3 series de 30 segundos."] },
+                "Viernes": { type: "Movilidad y Tonificación", exercises: ["Sesión de Yoga o Pilates de 45 minutos enfocada en la postura y el estiramiento profundo."] },
+                "Sábado": { type: "Descanso Activo", exercises: ["Caminatas largas al aire libre (mínimo 10,000 pasos). Ideal para conectar con el entorno y reducir cortisol."] },
+                "Domingo": { type: "Descanso Activo", exercises: ["Caminatas largas al aire libre (mínimo 10,000 pasos). Recuperación y preparación para la semana."] }
+            }
+        };
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderConsejos();
+            renderReglas();
+            renderMenu();
+            initChart();
+            selectDay('Lunes'); // Default day
+        });
+
+        // --- Navigation Logic ---
+        function switchTab(tabId) {
+            // Update buttons
+            ['resumen', 'nutricion', 'rutina'].forEach(id => {
+                const btn = document.getElementById(`btn-${id}`);
+                btn.classList.remove('tab-active');
+                btn.classList.add('text-stone-500');
+                
+                // Hide views
+                document.getElementById(`view-${id}`).classList.add('hidden');
+            });
+
+            // Activate target
+            const activeBtn = document.getElementById(`btn-${tabId}`);
+            activeBtn.classList.add('tab-active');
+            activeBtn.classList.remove('text-stone-500');
+            
+            const activeView = document.getElementById(`view-${tabId}`);
+            activeView.classList.remove('hidden');
+            // Retrigger animation
+            activeView.classList.remove('fade-in');
+            void activeView.offsetWidth; 
+            activeView.classList.add('fade-in');
+        }
+
+        // --- Render Functions ---
+        function renderConsejos() {
+            const container = document.getElementById('consejos-container');
+            container.innerHTML = reportData.consejos.map(c => `
+                <div class="flex items-start gap-4 p-4 bg-white rounded-lg border border-stone-100 shadow-sm transition hover:shadow-md">
+                    <div class="text-2xl">${c.icon}</div>
+                    <div>
+                        <h4 class="font-medium text-stone-800">${c.title}</h4>
+                        <p class="text-sm text-stone-500 mt-1">${c.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderReglas() {
+            const container = document.getElementById('reglas-container');
+            container.innerHTML = reportData.reglas.map(r => `
+                <li class="flex items-start bg-white p-3 rounded-md border border-stone-100 shadow-sm">
+                    <span class="leading-relaxed">${r}</span>
+                </li>
+            `).join('');
+        }
+
+        function renderMenu() {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = reportData.menu.map((m, idx) => `
+                <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full border border-white bg-teal-100 text-teal-700 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 text-xs font-bold">
+                        ${idx + 1}
+                    </div>
+                    <div class="w-[calc(100%-2.5rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-stone-200 bg-white shadow-sm">
+                        <div class="text-xs uppercase tracking-widest text-teal-700 font-semibold mb-1">${m.time}</div>
+                        <div class="text-sm text-stone-700">${m.meal}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- Routine Logic ---
+        function selectDay(day) {
+            // Update buttons
+            Object.keys(reportData.rutinas).forEach(d => {
+                const btn = document.getElementById(`btn-day-${d}`);
+                btn.classList.remove('day-active');
+                if(d === day) {
+                    btn.classList.add('day-active');
+                }
+            });
+
+            // Update content
+            const data = reportData.rutinas[day];
+            document.getElementById('routine-title').textContent = day;
+            document.getElementById('routine-subtitle').textContent = data.type;
+            
+            const exercisesContainer = document.getElementById('routine-exercises');
+            exercisesContainer.innerHTML = data.exercises.map(ex => `
+                <div class="bg-white p-4 rounded-lg border border-stone-200 flex items-center gap-3 shadow-sm hover:border-teal-200 transition-colors">
+                    <div class="w-2 h-2 rounded-full bg-teal-500 shrink-0"></div>
+                    <span class="text-stone-700">${ex.replace('Finisher:', '<strong class="text-teal-800">Finisher:</strong>')}</span>
+                </div>
+            `).join('');
+
+            // Small animation effect
+            const area = document.getElementById('routine-content-area');
+            area.style.opacity = '0.5';
+            setTimeout(() => { area.style.opacity = '1'; }, 100);
+        }
+
+        // --- Chart Initialization ---
+        function initChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            
+            // Simulating weight loss: Week 0 to Week 4 (-5kg total)
+            const labels = ['Inicio', 'Semana 1', 'Semana 2', 'Semana 3', 'Semana 4'];
+            const dataPts = [0, -1.2, -2.5, -3.8, -5.0];
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Kilos Reducidos',
+                        data: dataPts,
+                        borderColor: '#0f766e', // teal-700
+                        backgroundColor: 'rgba(15, 118, 110, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#0f766e',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(28, 25, 23, 0.9)', // stone-900
+                            titleFont: { size: 13, family: 'sans-serif' },
+                            bodyFont: { size: 14, weight: 'bold', family: 'sans-serif' },
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: { display: true, text: 'Progreso (kg)', color: '#78716c', font: {size: 12} },
+                            grid: { color: '#f5f5f4', borderDash: [5, 5] },
+                            ticks: { color: '#a8a29e', stepSize: 1 },
+                            max: 0.5,
+                            min: -5.5
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#78716c' }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
+                }
+            });
+        }
+    </script>
+</body>
+</html>
